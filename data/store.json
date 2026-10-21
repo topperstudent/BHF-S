@@ -1,0 +1,46 @@
+{
+  "users": [
+    {
+      "uid": "admin-sanjay-uid",
+      "phone": "8888092855",
+      "email": "admin@bhfs.com",
+      "passwordHash": "$2b$10$RQr3I7JvyZ6CwPDq0x.wLuzfm3AJj6a4anLVdQbrC3e6ENw5MJi2u",
+      "name": "BHFS Admin (Sanjay Dhumal)",
+      "address": "Lonikand Pushp Nagari, Konark Residency, Pune, MH 412216",
+      "createdAt": "2026-10-21T15:59:50.373Z",
+      "lastLoginAt": "2026-10-21T15:59:50.374Z"
+    }
+  ],
+  "products": [],
+  "orders": [
+    {
+      "id": "1479fcae-fd3f-4cc9-845c-f9616f7f1d92",
+      "userId": "sample-user-id",
+      "name": "Sanjay Dhumal",
+      "phone": "8888092855",
+      "address": "Lonikand Pushp Nagari, Konark Residency, Pune",
+      "items": [
+        {
+          "id": "sample-item-1",
+          "name": "Chakki Fresh Sharbati Gehu Aata (10kg)",
+          "price": 480,
+          "quantity": 1,
+          "imageUrl": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80"
+        }
+      ],
+      "totalPrice": 480,
+      "status": "pending",
+      "createdAt": "2026-10-21T15:59:50.374Z",
+      "estimatedDeliveryTime": "Today within 2-4 hours",
+      "currentLocation": "Order Received - Lonikand Center",
+      "trackingNotes": "Driver will call before delivery"
+    }
+  ],
+  "visitors": [
+    {
+      "id": "v1",
+      "timestamp": "2026-10-21T15:59:50.374Z",
+      "userAgent": "Mozilla/5.0"
+    }
+  ]
+}
