@@ -64,7 +64,7 @@ interface DBData {
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'store.json');
 
-// User requested credentials: Phone: 8888092855, Password: deepadhumal
+// Admin Configuration
 export const ADMIN_PHONE = process.env.ADMIN_PHONE || '8888092855';
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'deepadhumal';
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@bhfs.com';

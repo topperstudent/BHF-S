@@ -91,8 +91,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenDomainGuide }) => {
                 </Link>
               </li>
               <li>
-                <Link to="/admin" className="hover:text-[#D4AF37] transition-colors">
-                  Admin Dashboard Login
+                <Link to="/auth" className="hover:text-[#D4AF37] transition-colors">
+                  Customer Sign In
                 </Link>
               </li>
               {onOpenDomainGuide && (

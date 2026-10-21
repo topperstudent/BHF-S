@@ -35,6 +35,7 @@ import {
   Eye,
   ShoppingBag,
   Send,
+  RefreshCw,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -108,8 +109,9 @@ export const OrderManagement: React.FC = () => {
     if (!deleteOrderId) return;
     try {
       await ordersAPI.delete(deleteOrderId);
-      toast.success('Order deleted');
+      toast.success('Order deleted permanently');
       setDetailOpen(false);
+      setSelectedOrder(null);
       await loadOrders();
     } catch (err) {
       toast.error('Failed to delete order');
@@ -134,7 +136,7 @@ export const OrderManagement: React.FC = () => {
       case 'completed':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            <CheckCircle className="h-3 w-3" /> Delivered
+            <CheckCircle className="h-3 w-3" /> Delivered / Completed
           </span>
         );
       case 'cancelled':
@@ -155,31 +157,43 @@ export const OrderManagement: React.FC = () => {
   return (
     <div className="space-y-6" data-testid="order-management">
       {/* Filter and stats */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-stone-200 shadow-sm">
         <div>
           <h2 className="text-xl font-bold text-stone-900" style={{ fontFamily: 'Playfair Display' }}>
             Customer Orders ({orders.length})
           </h2>
           <p className="text-xs text-stone-500">
-            Track customer deliveries, update ETA, and coordinate doorstep delivery
+            Track customer deliveries, update ETA, and manage order fulfillment
           </p>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap gap-1.5 bg-stone-100 p-1 rounded-xl">
-          {['all', 'pending', 'confirmed', 'completed'].map((st) => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all capitalize ${
-                statusFilter === st
-                  ? 'bg-white text-[#1F7A4C] shadow-sm'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              {st === 'all' ? `All (${orders.length})` : st}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-1.5 bg-stone-100 p-1 rounded-2xl">
+            {['all', 'pending', 'confirmed', 'completed'].map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all capitalize cursor-pointer ${
+                  statusFilter === st
+                    ? 'bg-white text-[#1F7A4C] shadow-sm'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                {st === 'all' ? `All (${orders.length})` : st}
+              </button>
+            ))}
+          </div>
+
+          <Button
+            onClick={loadOrders}
+            variant="outline"
+            size="sm"
+            className="rounded-xl text-xs h-9"
+            title="Refresh Orders"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
 
@@ -189,10 +203,16 @@ export const OrderManagement: React.FC = () => {
           <p className="mt-2 text-xs text-stone-500">Loading orders...</p>
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-stone-200 p-8">
-          <ShoppingBag className="h-14 w-14 text-stone-300 mx-auto mb-3" />
-          <p className="text-base font-bold text-stone-700">No orders in this status</p>
-          <p className="text-xs text-stone-500 mt-1">New customer orders will appear here in real-time.</p>
+        <div className="text-center py-16 bg-white rounded-3xl border border-stone-200 p-8 space-y-3">
+          <div className="h-16 w-16 rounded-full bg-stone-100 flex items-center justify-center mx-auto text-stone-400">
+            <ShoppingBag className="h-8 w-8" />
+          </div>
+          <p className="text-base font-bold text-stone-800">No orders found</p>
+          <p className="text-xs text-stone-500 max-w-sm mx-auto">
+            {statusFilter === 'all'
+              ? 'New orders placed by customers or via WhatsApp will appear here in real-time.'
+              : `No orders currently in "${statusFilter}" status.`}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -201,112 +221,148 @@ export const OrderManagement: React.FC = () => {
               key={order.id}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm hover:shadow-md transition-shadow space-y-4"
+              className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm hover:shadow-md transition-shadow space-y-4 flex flex-col justify-between"
             >
-              {/* Header */}
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-stone-500">
-                      #{order.id.slice(0, 8)}
-                    </span>
-                    {getStatusBadge(order.status)}
+              <div className="space-y-4">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-stone-500">
+                        #{order.id.slice(0, 8)}
+                      </span>
+                      {getStatusBadge(order.status)}
+                    </div>
+                    <h3 className="font-bold text-base text-stone-900 mt-1">
+                      {order.name}
+                    </h3>
                   </div>
-                  <h3 className="font-bold text-base text-stone-900 mt-1">
-                    {order.name}
-                  </h3>
+
+                  <div className="text-right">
+                    <div className="text-lg font-black text-[#1F7A4C]">
+                      ₹{order.totalPrice.toFixed(2)}
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] text-stone-400 mt-0.5">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="text-right">
-                  <div className="text-lg font-black text-[#1F7A4C]">
-                    ₹{order.totalPrice.toFixed(2)}
-                  </div>
-                  <div className="flex items-center gap-1 text-[11px] text-stone-400 mt-0.5">
-                    <Calendar className="h-3 w-3" />
-                    <span>{new Date(order.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Customer Info */}
-              <div className="bg-[#FAF6F0] rounded-xl p-3 text-xs space-y-1.5 border border-stone-100">
-                <div className="flex items-center gap-2 text-stone-700">
-                  <Phone className="h-3.5 w-3.5 text-[#1F7A4C] shrink-0" />
-                  <a href={`tel:${order.phone}`} className="hover:underline font-semibold">
-                    {order.phone}
-                  </a>
-                  <a
-                    href={`https://wa.me/91${order.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Namaste ${order.name}, this is Sanjay from BHFS. Your order #${order.id.slice(0, 6)} is confirmed!`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-auto flex items-center gap-1 text-[#25D366] font-bold hover:underline"
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    WhatsApp
-                  </a>
-                </div>
-                <div className="flex items-start gap-2 text-stone-600">
-                  <MapPin className="h-3.5 w-3.5 text-[#1F7A4C] shrink-0 mt-0.5" />
-                  <span className="line-clamp-2">{order.address}</span>
-                </div>
-              </div>
-
-              {/* Items Preview */}
-              <div className="space-y-1.5 pt-1">
-                <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-                  Items ({order.items.reduce((s, i) => s + i.quantity, 0)})
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {order.items.map((item, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center text-xs bg-stone-100 px-2.5 py-1 rounded-lg text-stone-800"
+                {/* Customer Info */}
+                <div className="bg-[#FAF6F0] rounded-xl p-3 text-xs space-y-1.5 border border-stone-100">
+                  <div className="flex items-center gap-2 text-stone-700">
+                    <Phone className="h-3.5 w-3.5 text-[#1F7A4C] shrink-0" />
+                    <a href={`tel:${order.phone}`} className="hover:underline font-semibold">
+                      {order.phone}
+                    </a>
+                    <a
+                      href={`https://wa.me/91${order.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                        `Namaste ${order.name}, this is Sanjay from BHFS. Your order #${order.id.slice(0, 6)} is confirmed!`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto flex items-center gap-1 text-[#25D366] font-bold hover:underline"
                     >
-                      <strong className="mr-1">{item.name}</strong> × {item.quantity}
-                    </span>
-                  ))}
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      WhatsApp
+                    </a>
+                  </div>
+                  <div className="flex items-start gap-2 text-stone-600">
+                    <MapPin className="h-3.5 w-3.5 text-[#1F7A4C] shrink-0 mt-0.5" />
+                    <span className="line-clamp-2">{order.address}</span>
+                  </div>
                 </div>
+
+                {/* Items Preview */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
+                    Items ({order.items.reduce((s, i) => s + i.quantity, 0)})
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {order.items.map((item, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center text-xs bg-stone-100 px-2.5 py-1 rounded-lg text-stone-800"
+                      >
+                        <strong className="mr-1">{item.name}</strong> × {item.quantity}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live Tracking Status Preview */}
+                {(order.estimatedDeliveryTime || order.currentLocation) && (
+                  <div className="text-[11px] bg-emerald-50 text-emerald-800 p-2.5 rounded-xl flex items-center justify-between border border-emerald-100">
+                    <span>
+                      ⏱ ETA: <strong>{order.estimatedDeliveryTime}</strong>
+                    </span>
+                    <span className="truncate max-w-[180px] text-emerald-700">
+                      {order.currentLocation}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Live Tracking Status Preview */}
-              {order.estimatedDeliveryTime && (
-                <div className="text-[11px] bg-emerald-50 text-emerald-800 p-2 rounded-lg flex items-center justify-between border border-emerald-100">
-                  <span>⏱ ETA: <strong>{order.estimatedDeliveryTime}</strong></span>
-                  <span className="truncate max-w-[180px] text-emerald-700">{order.currentLocation}</span>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
+              {/* Action Buttons on Card */}
+              <div className="flex items-center gap-2 pt-3 border-t border-stone-100">
                 <Button
                   onClick={() => openOrderDetail(order)}
                   variant="outline"
                   size="sm"
-                  className="flex-1 rounded-xl text-xs h-8 border-stone-200 hover:bg-stone-50 font-bold"
+                  className="flex-1 rounded-xl text-xs h-8.5 border-stone-200 hover:bg-stone-50 font-bold cursor-pointer"
                 >
                   <Eye className="h-3.5 w-3.5 mr-1" />
                   Details & Tracking
                 </Button>
 
-                {/* Quick Status Changers */}
+                {/* Status action */}
                 {order.status === 'pending' && (
                   <Button
                     onClick={() => handleStatusUpdate(order.id, 'confirmed')}
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs h-8 px-3 font-bold"
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs h-8.5 px-3 font-bold cursor-pointer"
                   >
-                    Confirm & Dispatch
+                    Confirm Order
                   </Button>
                 )}
                 {order.status === 'confirmed' && (
                   <Button
                     onClick={() => handleStatusUpdate(order.id, 'completed')}
                     size="sm"
-                    className="bg-[#1F7A4C] hover:bg-[#175C39] text-white rounded-xl text-xs h-8 px-3 font-bold"
+                    className="bg-[#1F7A4C] hover:bg-[#175C39] text-white rounded-xl text-xs h-8.5 px-3 font-bold cursor-pointer"
                   >
                     Mark Delivered
                   </Button>
                 )}
+                {order.status === 'completed' && (
+                  <Button
+                    onClick={() => handleStatusUpdate(order.id, 'pending')}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl text-xs h-8.5 px-2.5 text-stone-600 cursor-pointer"
+                  >
+                    Reopen
+                  </Button>
+                )}
+
+                {/* Direct Delete button on Card */}
+                <Button
+                  onClick={() => setDeleteOrderId(order.id)}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-xs h-8.5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 px-2.5 cursor-pointer"
+                  title="Delete Order"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </motion.div>
           ))}
@@ -337,13 +393,13 @@ export const OrderManagement: React.FC = () => {
                       key={st}
                       type="button"
                       onClick={() => handleStatusUpdate(selectedOrder.id, st)}
-                      className={`py-2 px-3 rounded-xl font-bold text-xs capitalize transition-all border ${
+                      className={`py-2 px-3 rounded-xl font-bold text-xs capitalize transition-all border cursor-pointer ${
                         selectedOrder.status === st
                           ? 'bg-[#1F7A4C] text-white border-[#1F7A4C]'
                           : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
                       }`}
                     >
-                      {st}
+                      {st === 'completed' ? 'Delivered' : st}
                     </button>
                   ))}
                 </div>
@@ -352,8 +408,12 @@ export const OrderManagement: React.FC = () => {
               {/* Customer Details */}
               <div className="bg-stone-50 rounded-xl p-3 space-y-1.5 border border-stone-200">
                 <div className="font-bold text-stone-900 text-sm">{selectedOrder.name}</div>
-                <div className="text-stone-600">Phone: <strong>{selectedOrder.phone}</strong></div>
-                <div className="text-stone-600">Address: <strong>{selectedOrder.address}</strong></div>
+                <div className="text-stone-600">
+                  Phone: <strong>{selectedOrder.phone}</strong>
+                </div>
+                <div className="text-stone-600">
+                  Address: <strong>{selectedOrder.address}</strong>
+                </div>
               </div>
 
               {/* Items List */}
@@ -429,45 +489,46 @@ export const OrderManagement: React.FC = () => {
 
                 <Button
                   onClick={handleUpdateTracking}
-                  className="w-full bg-[#1F7A4C] hover:bg-[#175C39] text-white font-bold rounded-xl text-xs h-8.5"
+                  className="w-full bg-[#1F7A4C] hover:bg-[#175C39] text-white font-bold rounded-xl text-xs h-8.5 cursor-pointer"
                 >
                   <Send className="h-3.5 w-3.5 mr-1.5" />
                   Save Tracking Updates
                 </Button>
               </div>
 
-              {/* Delete Button */}
-              {selectedOrder.status === 'completed' && (
-                <div className="pt-2">
-                  <Button
-                    onClick={() => setDeleteOrderId(selectedOrder.id)}
-                    variant="destructive"
-                    size="sm"
-                    className="w-full text-xs rounded-xl"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    Archive / Delete Delivered Order
-                  </Button>
-                </div>
-              )}
+              {/* Delete Order Button (always available for admin) */}
+              <div className="pt-2 border-t border-stone-200">
+                <Button
+                  onClick={() => setDeleteOrderId(selectedOrder.id)}
+                  variant="destructive"
+                  size="sm"
+                  className="w-full text-xs rounded-xl h-9 cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  Delete Order Permanently
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation */}
+      {/* Delete confirmation dialog */}
       <AlertDialog open={Boolean(deleteOrderId)} onOpenChange={(open) => !open && setDeleteOrderId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this order?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this order permanently?</AlertDialogTitle>
             <AlertDialogDescription>
-              This order will be permanently deleted from database records.
+              This order will be permanently erased from your database records. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteOrder} className="bg-red-600 hover:bg-red-700 text-white">
-              Delete Order
+            <AlertDialogCancel className="cursor-pointer">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOrder}
+              className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+            >
+              Confirm Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

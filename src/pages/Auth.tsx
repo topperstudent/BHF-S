@@ -8,15 +8,12 @@ import { Textarea } from '../components/ui/textarea';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  ShieldCheck,
   User,
   Phone,
   MapPin,
   Lock,
   Eye,
   EyeOff,
-  Sparkles,
-  ArrowRight,
 } from 'lucide-react';
 
 export const Auth: React.FC = () => {
@@ -52,7 +49,7 @@ export const Auth: React.FC = () => {
     try {
       const res = await signIn(loginIdentifier.trim(), loginPassword);
       if (res.isAdmin) {
-        toast.success('Welcome back, Admin! Redirecting to Store Console...');
+        toast.success('Welcome back, Admin!');
         navigate('/admin');
       } else {
         toast.success(`Welcome back, ${res.user.name || 'Customer'}!`);
@@ -97,13 +94,6 @@ export const Auth: React.FC = () => {
     }
   };
 
-  const fillAdminCredentials = () => {
-    setIsLogin(true);
-    setLoginIdentifier('8888092855');
-    setLoginPassword('deepadhumal');
-    toast.info('Filled Admin details: 8888092855 / deepadhumal');
-  };
-
   return (
     <div className="min-h-[85vh] flex items-center justify-center bg-[#FAF6F0] px-4 py-8 sm:py-14" data-testid="auth-page">
       <motion.div
@@ -127,11 +117,11 @@ export const Auth: React.FC = () => {
             </span>
           </Link>
           <h2 className="text-2xl font-bold text-stone-900" style={{ fontFamily: 'Playfair Display' }}>
-            {isLogin ? 'Sign In with Mobile' : 'Create New Customer Account'}
+            {isLogin ? 'Sign In' : 'Create Customer Account'}
           </h2>
           <p className="text-xs text-stone-500 mt-1">
             {isLogin
-              ? 'Enter your mobile number and password to access your basket & orders'
+              ? 'Enter your mobile number and password to access your account'
               : 'Sign up for fast doorstep delivery of stone-ground Aata and farm produce'}
           </p>
         </div>
@@ -177,7 +167,7 @@ export const Auth: React.FC = () => {
                     id="login-phone"
                     required
                     type="text"
-                    placeholder="e.g. 8888092855 or user@example.com"
+                    placeholder="e.g. 9876543210 or name@example.com"
                     value={loginIdentifier}
                     onChange={(e) => setLoginIdentifier(e.target.value)}
                     className="pl-9 text-xs h-11"
@@ -202,7 +192,7 @@ export const Auth: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -212,7 +202,7 @@ export const Auth: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#1F7A4C] hover:bg-[#175C39] text-white font-bold rounded-xl py-3 text-sm mt-2 shadow-md transition-transform active:scale-98"
+                className="w-full bg-[#1F7A4C] hover:bg-[#175C39] text-white font-bold rounded-xl py-3 text-sm mt-2 shadow-md transition-transform active:scale-98 cursor-pointer"
               >
                 {loading ? 'Verifying...' : 'Sign In'}
               </Button>
@@ -287,7 +277,7 @@ export const Auth: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -297,24 +287,12 @@ export const Auth: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#1F7A4C] hover:bg-[#175C39] text-white font-bold rounded-xl py-3 text-sm mt-3 shadow-md transition-transform active:scale-98"
+                className="w-full bg-[#1F7A4C] hover:bg-[#175C39] text-white font-bold rounded-xl py-3 text-sm mt-3 shadow-md transition-transform active:scale-98 cursor-pointer"
               >
                 {loading ? 'Creating Account...' : 'Register & Start Shopping'}
               </Button>
             </form>
           )}
-
-          {/* Quick Admin Demo Fast-Fill */}
-          <div className="mt-6 pt-5 border-t border-stone-200">
-            <button
-              type="button"
-              onClick={fillAdminCredentials}
-              className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl border border-[#D4AF37]/50 bg-[#FDFBF7] text-[#2B090F] hover:bg-[#F3E5AB]/20 text-xs font-bold transition-all hover:scale-101 cursor-pointer"
-            >
-              <ShieldCheck className="h-4 w-4 text-[#B8860B]" />
-              <span>Admin Fast-Fill (8888092855 / deepadhumal)</span>
-            </button>
-          </div>
         </div>
       </motion.div>
     </div>

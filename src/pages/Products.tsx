@@ -196,18 +196,11 @@ export const Products: React.FC = () => {
                   href="https://wa.me/918888092855?text=Namaste%20BHFS%2C%20what%20fresh%20aata%20and%20produce%20is%20available%20today%3F"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold rounded-xl text-xs py-2.5 px-5 shadow-sm transition-transform active:scale-95"
+                  className="inline-flex items-center gap-2 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold rounded-xl text-xs py-2.5 px-6 shadow-sm transition-transform active:scale-95"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  Inquire on WhatsApp (8888092855)
+                  Inquire on WhatsApp
                 </a>
-
-                <Link to="/auth">
-                  <Button variant="outline" className="rounded-xl text-xs font-semibold border-stone-200">
-                    <ShieldCheck className="h-3.5 w-3.5 mr-1" />
-                    Admin Login
-                  </Button>
-                </Link>
               </div>
             )}
           </div>
