@@ -1,0 +1,166 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "BHFS farm fresh grocery product such as stone-ground flour, organic grains, and cold-pressed oil",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique product identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Product display title",
+          "maxLength": 100
+        },
+        "price": {
+          "type": "number",
+          "description": "Price in Indian Rupees (INR)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Product details, health benefits, and farming source",
+          "maxLength": 2000
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "Product image URL",
+          "maxLength": 1000
+        },
+        "category": {
+          "type": "string",
+          "description": "Product category",
+          "maxLength": 50
+        },
+        "unit": {
+          "type": "string",
+          "description": "Weight or unit specification (e.g., 5 kg, 1 Liter, 500g)",
+          "maxLength": 50
+        },
+        "inStock": {
+          "type": "boolean",
+          "description": "Stock availability status"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp in ISO format"
+        }
+      },
+      "required": ["name", "price", "category", "unit"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order containing food products, delivery address, and live tracking info",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique order identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID or local user ID of customer"
+        },
+        "name": {
+          "type": "string",
+          "description": "Customer full name",
+          "maxLength": 100
+        },
+        "phone": {
+          "type": "string",
+          "description": "Customer 10-digit mobile number",
+          "maxLength": 20
+        },
+        "address": {
+          "type": "string",
+          "description": "Detailed delivery address",
+          "maxLength": 500
+        },
+        "items": {
+          "type": "array",
+          "description": "List of items in the order"
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "Total order amount in INR"
+        },
+        "status": {
+          "type": "string",
+          "description": "Order fulfillment status",
+          "enum": ["pending", "confirmed", "completed", "cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Order placement timestamp"
+        },
+        "estimatedDeliveryTime": {
+          "type": "string",
+          "description": "Estimated time of delivery (e.g. 2 hours)",
+          "maxLength": 100
+        },
+        "currentLocation": {
+          "type": "string",
+          "description": "Live courier tracking location",
+          "maxLength": 200
+        },
+        "trackingNotes": {
+          "type": "string",
+          "description": "Driver dispatch notes",
+          "maxLength": 500
+        }
+      },
+      "required": ["userId", "name", "phone", "address", "totalPrice", "status", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User customer profile with contact information",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 100
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact phone number",
+          "maxLength": 20
+        },
+        "email": {
+          "type": "string",
+          "description": "Contact email",
+          "maxLength": 100
+        },
+        "address": {
+          "type": "string",
+          "description": "Saved delivery address",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Account registration date"
+        }
+      },
+      "required": ["uid", "name", "phone"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of all farm products available for purchase"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of customer orders"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of customer profile data"
+    }
+  }
+}
