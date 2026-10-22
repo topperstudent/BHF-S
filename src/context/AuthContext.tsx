@@ -27,6 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const checkAuth = async () => {
     const token = localStorage.getItem('bhfs_token');
+    const cachedUser = localStorage.getItem('bhfs_user');
     if (token) {
       try {
         const userData = await authAPI.getMe();
@@ -34,9 +35,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const adminData = await authAPI.isAdmin();
         setIsAdmin(Boolean(adminData?.isAdmin));
       } catch (error) {
-        localStorage.removeItem('bhfs_token');
-        setUser(null);
-        setIsAdmin(false);
+        if (cachedUser) {
+          try {
+            const u = JSON.parse(cachedUser);
+            setUser(u);
+            setIsAdmin(Boolean(u.isAdmin));
+          } catch {
+            localStorage.removeItem('bhfs_token');
+            localStorage.removeItem('bhfs_user');
+            setUser(null);
+            setIsAdmin(false);
+          }
+        } else {
+          localStorage.removeItem('bhfs_token');
+          setUser(null);
+          setIsAdmin(false);
+        }
       }
     }
     setLoading(false);
@@ -78,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = () => {
     localStorage.removeItem('bhfs_token');
+    localStorage.removeItem('bhfs_user');
     setUser(null);
     setIsAdmin(false);
     toast.success('Signed out successfully');

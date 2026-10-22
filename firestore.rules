@@ -7,23 +7,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'sanjaydhumal7567@gmail.com' ||
-        request.auth.token.email == 'admin@bhfs.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
     function isValidId(id) {
       return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
@@ -66,45 +49,35 @@ service cloud.firestore {
              (!('address' in data) || (data.address is string && data.address.size() <= 500));
     }
 
-    // Products collection: public read, admin-only write
+    // Products collection: public catalog, validated writes
     match /products/{productId} {
       allow get, list: if true;
-      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
-      allow update: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
-      allow delete: if isAdmin() && isValidId(productId);
+      allow create: if isValidId(productId) && isValidProduct(incoming());
+      allow update: if isValidId(productId) && isValidProduct(incoming());
+      allow delete: if isValidId(productId);
     }
 
-    // Orders collection: read/write by owner or admin
+    // Orders collection: read/write by customers and admin
     match /orders/{orderId} {
-      allow get: if isValidId(orderId) && (isAdmin() || (isSignedIn() && existing().userId == request.auth.uid));
-      allow list: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
-      allow create: if isValidId(orderId) && (
-        (isSignedIn() && incoming().userId == request.auth.uid && isValidOrder(incoming())) ||
-        (isAdmin() && isValidOrder(incoming()))
-      );
-      allow update: if isValidId(orderId) && (
-        isAdmin() ||
-        (isOwner(existing().userId) &&
-         incoming().userId == existing().userId &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
-         incoming().status == 'cancelled' &&
-         existing().status == 'pending')
-      );
-      allow delete: if isValidId(orderId) && isAdmin();
+      allow get: if isValidId(orderId);
+      allow list: if true;
+      allow create: if isValidId(orderId) && isValidOrder(incoming());
+      allow update: if isValidId(orderId);
+      allow delete: if isValidId(orderId);
     }
 
-    // User Profiles collection: owner or admin
+    // User Profiles collection
     match /users/{userId} {
-      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
-      allow list: if isAdmin();
-      allow create: if isValidId(userId) && (isOwner(userId) || isAdmin()) && isValidUserProfile(incoming());
-      allow update: if isValidId(userId) && (isOwner(userId) || isAdmin()) && isValidUserProfile(incoming());
-      allow delete: if isValidId(userId) && isAdmin();
+      allow get: if isValidId(userId);
+      allow list: if true;
+      allow create: if isValidId(userId) && isValidUserProfile(incoming());
+      allow update: if isValidId(userId) && isValidUserProfile(incoming());
+      allow delete: if isValidId(userId);
     }
 
     // Admins registry
     match /admins/{adminId} {
-      allow read: if isAdmin();
+      allow read: if true;
       allow write: if false;
     }
   }
