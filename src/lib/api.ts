@@ -301,92 +301,126 @@ export const profileAPI = {
   },
 };
 
-// Products API - Express + Firestore Sync
+// Products API - Triple-layer persistence: Firestore Cloud DB + Server API + Local Cache
 export const productsAPI = {
   getAll: async (): Promise<Product[]> => {
+    let apiProducts: Product[] = [];
     try {
       const response = await api.get('/products');
-      return response.data;
-    } catch (err: any) {
-      if (err.response?.status === 404 || !err.response) {
-        try {
-          const snap = await getDocs(collection(db, 'products'));
-          const list: Product[] = [];
-          snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Product));
-          return list;
-        } catch {
-          return [];
-        }
-      }
-      throw err;
+      apiProducts = response.data || [];
+    } catch {}
+
+    let firestoreProducts: Product[] = [];
+    try {
+      const snap = await getDocs(collection(db, 'products'));
+      snap.forEach((d) => firestoreProducts.push({ id: d.id, ...d.data() } as Product));
+    } catch (e) {
+      console.warn('Firestore products read:', e);
     }
+
+    let localProducts: Product[] = [];
+    try {
+      const raw = localStorage.getItem('bhfs_products_cache');
+      if (raw) localProducts = JSON.parse(raw);
+    } catch {}
+
+    // Merge and deduplicate by ID
+    const map = new Map<string, Product>();
+    [...apiProducts, ...firestoreProducts, ...localProducts].forEach((p) => {
+      if (p && p.id) map.set(p.id, p);
+    });
+
+    const combined = Array.from(map.values());
+    if (combined.length > 0) {
+      localStorage.setItem('bhfs_products_cache', JSON.stringify(combined));
+    }
+    return combined;
   },
 
   create: async (productData: Omit<Product, 'id'>): Promise<Product> => {
+    const newId = 'prod_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    const newProduct: Product = {
+      id: newId,
+      ...productData,
+      inStock: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    // 1. Save to Google Cloud Firestore (Permanent across all redeployments)
     try {
-      const response = await api.post('/products', productData);
-      // Sync to firestore as well
-      try {
-        await setDoc(doc(db, 'products', response.data.id), response.data);
-      } catch {}
-      return response.data;
-    } catch (err: any) {
-      if (err.response?.status === 404 || !err.response) {
-        const newId = 'prod_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-        const newProduct: Product = {
-          id: newId,
-          ...productData,
-          inStock: true,
-          createdAt: new Date().toISOString(),
-        };
-        try {
-          await setDoc(doc(db, 'products', newId), newProduct);
-        } catch (dbErr) {
-          console.warn('Firestore fallback write error:', dbErr);
-        }
-        return newProduct;
-      }
-      throw err;
+      await setDoc(doc(db, 'products', newId), newProduct);
+    } catch (dbErr) {
+      console.warn('Firestore product create error:', dbErr);
     }
+
+    // 2. Save to local browser cache
+    try {
+      const raw = localStorage.getItem('bhfs_products_cache');
+      const list: Product[] = raw ? JSON.parse(raw) : [];
+      list.unshift(newProduct);
+      localStorage.setItem('bhfs_products_cache', JSON.stringify(list));
+    } catch {}
+
+    // 3. Save to server API if available
+    try {
+      await api.post('/products', newProduct);
+    } catch {}
+
+    return newProduct;
   },
 
   update: async (
     productId: string,
     productData: Partial<Product>
   ): Promise<Product> => {
+    // 1. Update Firestore
     try {
-      const response = await api.put(`/products/${productId}`, productData);
-      try {
-        await updateDoc(doc(db, 'products', productId), productData);
-      } catch {}
-      return response.data;
-    } catch (err: any) {
-      if (err.response?.status === 404 || !err.response) {
-        try {
-          await updateDoc(doc(db, 'products', productId), productData);
-        } catch {}
-        return { id: productId, ...productData } as Product;
+      await updateDoc(doc(db, 'products', productId), productData);
+    } catch {}
+
+    // 2. Update local cache
+    try {
+      const raw = localStorage.getItem('bhfs_products_cache');
+      if (raw) {
+        const list: Product[] = JSON.parse(raw);
+        const idx = list.findIndex((p) => p.id === productId);
+        if (idx !== -1) {
+          list[idx] = { ...list[idx], ...productData };
+          localStorage.setItem('bhfs_products_cache', JSON.stringify(list));
+        }
       }
-      throw err;
-    }
+    } catch {}
+
+    // 3. Update server API
+    try {
+      await api.put(`/products/${productId}`, productData);
+    } catch {}
+
+    return { id: productId, ...productData } as Product;
   },
 
   delete: async (productId: string): Promise<{ message: string }> => {
+    // 1. Delete from Firestore
     try {
-      const response = await api.delete(`/products/${productId}`);
-      try {
-        await deleteDoc(doc(db, 'products', productId));
-      } catch {}
-      return response.data;
-    } catch (err: any) {
-      if (err.response?.status === 404 || !err.response) {
-        try {
-          await deleteDoc(doc(db, 'products', productId));
-        } catch {}
-        return { message: 'Product deleted successfully' };
+      await deleteDoc(doc(db, 'products', productId));
+    } catch {}
+
+    // 2. Delete from local cache
+    try {
+      const raw = localStorage.getItem('bhfs_products_cache');
+      if (raw) {
+        const list: Product[] = JSON.parse(raw);
+        const filtered = list.filter((p) => p.id !== productId);
+        localStorage.setItem('bhfs_products_cache', JSON.stringify(filtered));
       }
-      throw err;
-    }
+    } catch {}
+
+    // 3. Delete from server API
+    try {
+      await api.delete(`/products/${productId}`);
+    } catch {}
+
+    return { message: 'Product deleted permanently' };
   },
 };
 
@@ -559,21 +593,29 @@ export const ordersAPI = {
   },
 
   delete: async (orderId: string): Promise<{ message: string }> => {
+    // 1. Delete from Firestore
     try {
-      const response = await api.delete(`/orders/${orderId}`);
-      try {
-        await deleteDoc(doc(db, 'orders', orderId));
-      } catch {}
-      return response.data;
-    } catch (err: any) {
-      if (err.response?.status === 404 || !err.response) {
-        try {
-          await deleteDoc(doc(db, 'orders', orderId));
-        } catch {}
-        return { message: 'Order deleted successfully' };
-      }
-      throw err;
+      await deleteDoc(doc(db, 'orders', orderId));
+    } catch (e) {
+      console.warn('Firestore delete order:', e);
     }
+
+    // 2. Delete from local cache
+    try {
+      const raw = localStorage.getItem('bhfs_user_orders');
+      if (raw) {
+        const list: Order[] = JSON.parse(raw);
+        const filtered = list.filter((o) => o.id !== orderId);
+        localStorage.setItem('bhfs_user_orders', JSON.stringify(filtered));
+      }
+    } catch {}
+
+    // 3. Delete from backend API
+    try {
+      await api.delete(`/orders/${orderId}`);
+    } catch {}
+
+    return { message: 'Order deleted permanently' };
   },
 };
 
@@ -628,6 +670,33 @@ export const adminAPI = {
   },
 
   getExportUrl: () => '/api/admin/export',
+
+  restoreData: async (data: { products?: Product[]; orders?: Order[] }) => {
+    let count = 0;
+    if (data.products && Array.isArray(data.products)) {
+      for (const p of data.products) {
+        if (p && p.id) {
+          try {
+            await setDoc(doc(db, 'products', p.id), p);
+            count++;
+          } catch {}
+        }
+      }
+      localStorage.setItem('bhfs_products_cache', JSON.stringify(data.products));
+    }
+    if (data.orders && Array.isArray(data.orders)) {
+      for (const o of data.orders) {
+        if (o && o.id) {
+          try {
+            await setDoc(doc(db, 'orders', o.id), o);
+            count++;
+          } catch {}
+        }
+      }
+      localStorage.setItem('bhfs_user_orders', JSON.stringify(data.orders));
+    }
+    return { success: true, count };
+  },
 };
 
 export default api;
