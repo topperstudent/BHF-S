@@ -16,10 +16,36 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const useAuth = () => useContext(AuthContext);
 
+// Strict check: ONLY phone 8888092855 is admin
+const verifyAdminPhone = (user: User | null): boolean => {
+  if (!user) return false;
+  const cleanPhone = (user.phone || '').replace(/[^0-9]/g, '');
+  return cleanPhone.endsWith('8888092855');
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  // Initialize state directly from localStorage so on reload the user is immediately available!
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const cached = localStorage.getItem('bhfs_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    try {
+      const cached = localStorage.getItem('bhfs_user');
+      if (!cached) return false;
+      const u = JSON.parse(cached);
+      return Boolean(u.isAdmin && verifyAdminPhone(u));
+    } catch {
+      return false;
+    }
+  });
+
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -28,30 +54,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkAuth = async () => {
     const token = localStorage.getItem('bhfs_token');
     const cachedUser = localStorage.getItem('bhfs_user');
+
+    if (cachedUser) {
+      try {
+        const u = JSON.parse(cachedUser);
+        setUser(u);
+        setIsAdmin(Boolean(u.isAdmin && verifyAdminPhone(u)));
+      } catch (err) {
+        console.error('Error parsing cached user', err);
+      }
+    }
+
     if (token) {
       try {
         const userData = await authAPI.getMe();
-        setUser(userData);
-        const adminData = await authAPI.isAdmin();
-        setIsAdmin(Boolean(adminData?.isAdmin));
-      } catch (error) {
-        if (cachedUser) {
-          try {
-            const u = JSON.parse(cachedUser);
-            setUser(u);
-            setIsAdmin(Boolean(u.isAdmin));
-          } catch {
-            localStorage.removeItem('bhfs_token');
-            localStorage.removeItem('bhfs_user');
-            setUser(null);
-            setIsAdmin(false);
-          }
-        } else {
-          localStorage.removeItem('bhfs_token');
-          setUser(null);
-          setIsAdmin(false);
+        if (userData && userData.uid) {
+          const isRealAdmin = Boolean(userData.isAdmin && verifyAdminPhone(userData));
+          const updatedUser = { ...userData, isAdmin: isRealAdmin };
+          setUser(updatedUser);
+          setIsAdmin(isRealAdmin);
+          localStorage.setItem('bhfs_user', JSON.stringify(updatedUser));
         }
+      } catch (error) {
+        // If API is down or running on Vercel without backend, keep local session
+        console.log('Using persistent user session');
       }
+    } else {
+      setUser(null);
+      setIsAdmin(false);
     }
     setLoading(false);
   };
@@ -59,10 +89,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (identifier: string, password: string) => {
     try {
       const response = await authAPI.login({ identifier, password });
+      const isRealAdmin = Boolean(response.isAdmin && verifyAdminPhone(response.user));
+      const userObj = { ...response.user, isAdmin: isRealAdmin };
+
       localStorage.setItem('bhfs_token', response.access_token);
-      setUser(response.user);
-      setIsAdmin(Boolean(response.isAdmin));
-      return response;
+      localStorage.setItem('bhfs_user', JSON.stringify(userObj));
+      setUser(userObj);
+      setIsAdmin(isRealAdmin);
+      return { ...response, isAdmin: isRealAdmin, user: userObj };
     } catch (err: any) {
       const message = err.response?.data?.detail || err.message || 'Login failed';
       throw new Error(message);
@@ -80,10 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
         ...userData,
       });
+
+      // Regular signups are NEVER admin!
+      const userObj = { ...response.user, isAdmin: false };
+
       localStorage.setItem('bhfs_token', response.access_token);
-      setUser(response.user);
-      setIsAdmin(Boolean(response.isAdmin));
-      return response;
+      localStorage.setItem('bhfs_user', JSON.stringify(userObj));
+      setUser(userObj);
+      setIsAdmin(false);
+      return { ...response, isAdmin: false, user: userObj };
     } catch (err: any) {
       const message = err.response?.data?.detail || err.message || 'Signup failed';
       throw new Error(message);

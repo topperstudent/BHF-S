@@ -68,7 +68,7 @@ const DATA_FILE = path.join(DATA_DIR, 'store.json');
 export const ADMIN_PHONE = process.env.ADMIN_PHONE || '8888092855';
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'deepadhumal';
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@bhfs.com';
-export const ADMIN_PHONES = ['8888092855', '7020835560', '08975610002', '8975610002'];
+export const ADMIN_PHONES = ['8888092855'];
 
 class Storage {
   private data: DBData = { users: [], products: [], orders: [], visitors: [] };

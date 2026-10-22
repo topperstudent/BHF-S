@@ -269,8 +269,14 @@ app.get('/api/orders', authenticateToken, (req: AuthenticatedRequest, res) => {
     const orders = storage.getOrders();
     return res.json(orders);
   }
-  const orders = storage.getOrders(req.user!.uid);
-  return res.json(orders);
+  const cleanPhone = (req.user!.phone || '').replace(/[^0-9]/g, '');
+  const allOrders = storage.getOrders();
+  const userOrders = allOrders.filter(
+    (o) =>
+      o.userId === req.user!.uid ||
+      (cleanPhone.length >= 10 && (o.phone || '').replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-10)))
+  );
+  return res.json(userOrders);
 });
 
 app.post('/api/orders', authenticateToken, (req: AuthenticatedRequest, res) => {

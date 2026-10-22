@@ -399,17 +399,31 @@ export const ordersAPI = {
     items: OrderItem[];
     totalPrice: number;
   }): Promise<Order> => {
+    const cachedUser = localStorage.getItem('bhfs_user');
+    const u = cachedUser ? JSON.parse(cachedUser) : { uid: 'guest-' + Date.now(), phone: orderData.phone };
+
+    const saveToLocalOrders = (ord: Order) => {
+      try {
+        const raw = localStorage.getItem('bhfs_user_orders');
+        const list: Order[] = raw ? JSON.parse(raw) : [];
+        if (!list.some((o) => o.id === ord.id)) {
+          list.unshift(ord);
+          localStorage.setItem('bhfs_user_orders', JSON.stringify(list));
+        }
+      } catch {}
+    };
+
     try {
       const response = await api.post('/orders', orderData);
+      const created = response.data;
+      saveToLocalOrders(created);
       try {
-        await setDoc(doc(db, 'orders', response.data.id), response.data);
+        await setDoc(doc(db, 'orders', created.id), created);
       } catch {}
-      return response.data;
+      return created;
     } catch (err: any) {
       if (err.response?.status === 404 || !err.response) {
         const newId = 'ord_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-        const cachedUser = localStorage.getItem('bhfs_user');
-        const u = cachedUser ? JSON.parse(cachedUser) : { uid: 'guest-' + Date.now() };
 
         const newOrder: Order = {
           id: newId,
@@ -426,6 +440,8 @@ export const ordersAPI = {
           trackingNotes: 'Farm dispatch initiated. We will call you before delivery.',
         };
 
+        saveToLocalOrders(newOrder);
+
         try {
           await setDoc(doc(db, 'orders', newId), newOrder);
         } catch (dbErr) {
@@ -439,22 +455,61 @@ export const ordersAPI = {
   },
 
   getAll: async (): Promise<Order[]> => {
+    const cachedUser = localStorage.getItem('bhfs_user');
+    const u: User | null = cachedUser ? JSON.parse(cachedUser) : null;
+    const cleanPhone = (u?.phone || '').replace(/[^0-9]/g, '');
+    const isStrictAdmin = Boolean(u?.isAdmin && cleanPhone.endsWith('8888092855'));
+
+    // Local cached orders for instant offline / reload display
+    let localOrders: Order[] = [];
+    try {
+      const raw = localStorage.getItem('bhfs_user_orders');
+      if (raw) localOrders = JSON.parse(raw);
+    } catch {}
+
+    let apiOrders: Order[] = [];
+
     try {
       const response = await api.get('/orders');
-      return response.data;
+      apiOrders = response.data;
     } catch (err: any) {
       if (err.response?.status === 404 || !err.response) {
         try {
           const snap = await getDocs(collection(db, 'orders'));
           const list: Order[] = [];
           snap.forEach((d) => list.push({ id: d.id, ...d.data() } as Order));
-          return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          apiOrders = list;
         } catch {
-          return [];
+          apiOrders = [];
         }
       }
-      throw err;
     }
+
+    // Merge API/Firestore orders and local orders
+    const map = new Map<string, Order>();
+    [...apiOrders, ...localOrders].forEach((o) => {
+      if (o && o.id) map.set(o.id, o);
+    });
+
+    const combined = Array.from(map.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    // If Admin, return all
+    if (isStrictAdmin) {
+      return combined;
+    }
+
+    // If customer, filter to only their orders (by UID or by 10-digit phone)
+    if (u) {
+      return combined.filter(
+        (o) =>
+          o.userId === u.uid ||
+          (cleanPhone.length >= 10 && (o.phone || '').replace(/[^0-9]/g, '').endsWith(cleanPhone.slice(-10)))
+      );
+    }
+
+    return [];
   },
 
   updateStatus: async (

@@ -11,6 +11,12 @@ export const MobileBottomNav: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const isStrictAdmin = Boolean(
+    isAdmin &&
+    user &&
+    (user.phone || '').replace(/[^0-9]/g, '').endsWith('8888092855')
+  );
+
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-stone-200 py-1.5 px-3 shadow-lg flex items-center justify-around safe-bottom">
       <Link
@@ -64,7 +70,7 @@ export const MobileBottomNav: React.FC = () => {
         </Link>
       ) : null}
 
-      {isAdmin ? (
+      {isStrictAdmin ? (
         <Link
           to="/admin"
           className={`flex flex-col items-center py-1 px-2.5 rounded-xl transition-colors ${

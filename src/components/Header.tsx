@@ -22,12 +22,18 @@ export const Header: React.FC<HeaderProps> = ({ onOpenDomainGuide }) => {
     setMobileMenuOpen(false);
   };
 
+  const isStrictAdmin = Boolean(
+    isAdmin &&
+    user &&
+    (user.phone || '').replace(/[^0-9]/g, '').endsWith('8888092855')
+  );
+
   const navItems = [
     { to: '/', label: 'Home', show: true },
     { to: '/products', label: 'All Products', show: true },
     { to: '/my-orders', label: 'My Orders', show: Boolean(user) },
     { to: '/profile', label: 'Profile', show: Boolean(user) },
-    { to: '/admin', label: 'Admin Hub', show: Boolean(isAdmin) },
+    { to: '/admin', label: 'Admin Panel', show: isStrictAdmin },
   ];
 
   return (
@@ -126,7 +132,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenDomainGuide }) => {
                     <span>{user.name.split(' ')[0]}</span>
                   </Button>
                 </Link>
-                {isAdmin && (
+                {isStrictAdmin && (
                   <Link to="/admin">
                     <Button
                       variant="outline"

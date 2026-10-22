@@ -21,19 +21,20 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
 export const MyOrders: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { addToCart, setIsOpen } = useCart();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       navigate('/auth?redirect=/my-orders');
       return;
     }
     loadOrders();
-  }, [user]);
+  }, [user, authLoading]);
 
   const loadOrders = async () => {
     setLoading(true);

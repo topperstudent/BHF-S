@@ -19,15 +19,35 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
+
 interface AdminProps {
   onOpenDomainGuide?: () => void;
 }
 
 export const Admin: React.FC<AdminProps> = ({ onOpenDomainGuide }) => {
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [visitorStats, setVisitorStats] = useState<VisitorStats | null>(null);
+
+  useEffect(() => {
+    if (!authLoading) {
+      const isStrictAdmin = Boolean(
+        isAdmin &&
+        user &&
+        (user.phone || '').replace(/[^0-9]/g, '').endsWith('8888092855')
+      );
+      if (!isStrictAdmin) {
+        toast.error('Access Denied: Admin panel is restricted to authorized BHFS administration.');
+        navigate('/');
+      }
+    }
+  }, [authLoading, isAdmin, user, navigate]);
 
   useEffect(() => {
     loadStats();
